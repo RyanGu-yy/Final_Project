@@ -1,0 +1,147 @@
+---
+title: "Final_Project_615"
+format: html
+editor: visual
+---
+
+## 
+
+```{r}
+library(readr)
+library(dplyr)
+library(stringr)
+```
+
+# Population
+
+```{r}
+df <- read_csv(
+  "FEH_00200521_251214050548.csv",
+  skip = 14
+)
+```
+
+```{r}
+glimpse(df)
+```
+
+```{r}
+honshu_pref <- c(
+  "Aomori","Iwate","Miyagi","Akita","Yamagata","Fukushima",
+  "Ibaraki","Tochigi","Gunma","Saitama","Chiba","Tokyo",
+  "Kanagawa","Niigata","Toyama","Ishikawa","Fukui",
+  "Yamanashi","Nagano","Gifu","Shizuoka","Aichi",
+  "Mie","Shiga","Kyoto","Osaka","Hyogo","Nara","Wakayama",
+  "Tottori","Shimane","Okayama","Hiroshima","Yamaguchi"
+)
+
+df_honshu <- df %>%
+  filter(
+    str_detect(
+      `All Municipalities (including those as of 2000)`,
+      str_c(honshu_pref, collapse = "|")
+    )
+  )
+
+pop_raw <- df_honshu
+```
+
+```{r}
+pop_clean <- pop_raw %>%
+  select(
+    area = `All Municipalities (including those as of 2000)`,
+    total = Total,
+    male = Male,
+    female = Female
+  )
+
+pop_clean
+```
+
+```{r}
+raw <- read_csv(
+  "FEH_00200521_251214051454.csv",
+  skip = 14
+)
+
+glimpse(raw)
+```
+
+```{r}
+unique(raw$`Metropolitan Areas`)
+```
+
+```{r}
+exclude_areas <- c(
+  "Japan",
+  "Matsuyama Metropolitan Areas",
+  "Iyo-shi", "Toon-shi", "Masaki-cho", "Tobe-cho", "Uchiko-cho",
+  "Kagoshima Metropolitan Areas",
+  "Kagoshima-shi", "Makurazaki-shi", "Ibusuki-shi", "Tarumizu-shi",
+  "Satsumasendai-shi", "Hioki-shi", "Kirishima-shi",
+  "Ichikikushikino-shi", "Minamisatsuma-shi",
+  "Minamikyushu-shi", "Aira-shi"
+)
+
+df_emp_honshu <- raw |>
+  dplyr::filter(
+    !(`Metropolitan Areas` %in% exclude_areas)
+  )
+
+unique(df_emp_honshu$`Metropolitan Areas`)
+```
+
+```{r}
+exclude_areas <- c(
+  exclude_areas,
+  "Matsuyama-shi",
+  "Ozu-shi",
+  "Kumakogen-cho"
+)
+
+df_emp_honshu <- raw |>
+  dplyr::filter(
+    !(`Metropolitan Areas` %in% exclude_areas)
+  )
+
+unique(df_emp_honshu$`Metropolitan Areas`)
+```
+
+```{r}
+df_emp_honshu_clean <- df_emp_honshu |>
+  select(
+    Time,
+    `Metropolitan Areas`,
+    Sex,
+    Total,
+    `Population in labour force`,
+    `Employed persons`,
+    Unemployed,
+    `Population not in labour force`,
+    `Did housework`,
+    `Attending school`,
+    Others
+  )
+
+df_emp_honshu_clean <- df_emp_honshu_clean |>
+  filter(Sex == "Total") |>
+  select(-Sex)
+
+df_emp_honshu_clean <- df_emp_honshu_clean |>
+  filter(
+    if_any(
+      where(is.numeric),
+      ~ !is.na(.)
+    )
+  )
+
+glimpse(df_emp_honshu_clean)
+summary(df_emp_honshu_clean)
+nrow(df_emp_honshu_clean)
+unique(df_emp_honshu_clean$`Metropolitan Areas`)
+```
+
+```{r}
+glimpse(df_emp_honshu_clean)
+glimpse(pop_clean)
+```
