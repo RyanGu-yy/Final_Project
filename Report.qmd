@@ -1,0 +1,187 @@
+---
+title: "Report"
+format: html
+editor: visual
+---
+
+```{r}
+library(shiny)
+library(dplyr)
+library(ggplot2)
+library(DT)
+library(tidyr)
+library(tibble)
+library(sf)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(conflicted)
+```
+
+# Overview of the application
+
+The *Honshu Labour Force Explorer* is an interactive Shiny application designed to explore labour force characteristics across metropolitan areas on Japan’s Honshu island. The app allows users to examine labour force size, employment structure, and comparative employment indicators at different spatial scales, including metropolitan areas and their constituent municipalities. The application is organized into four main tabs: Overview, Structure, Compare, and Map, each serving a distinct analytical purpose.
+
+# Overview tab: Distribution of labour force indicators
+
+The Overview tab provides a high-level comparison of labour force indicators across selected metropolitan areas and municipalities. Users first select one or more metropolitan areas and then choose a labour force indicator such as *Total population*, *Population in labour force*, *Employed persons*, *Unemployed*, or *Population not in labour force*.
+
+The horizontal bar chart displays the selected indicator for each area, ranked from largest to smallest. This visualization highlights differences in scale across regions. For example, when *Employed persons* is selected, the chart shows that the Utsunomiya Metropolitan Area has a substantially larger employed population than any of its individual cities, reflecting the aggregation of multiple municipalities within the metropolitan area.
+
+A corresponding data table beneath the chart presents the exact numerical values, allowing users to move seamlessly between visual comparison and precise quantitative interpretation.
+
+```{r}
+df_plot <- df_emp_honshu_clean %>%
+  arrange(desc(`Employed persons`)) %>%
+  mutate(
+    `Metropolitan Areas` = factor(
+      `Metropolitan Areas`,
+      levels = `Metropolitan Areas`
+    )
+  )
+
+ggplot(
+  df_plot,
+  aes(x = `Employed persons`, y = `Metropolitan Areas`)
+) +
+  geom_col(fill = "grey30") +
+  labs(
+    x = "Employed persons",
+    y = NULL
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+```
+
+This bar chart shows the distribution of *employed persons* across the Utsunomiya Metropolitan Area and its constituent municipalities, ordered from smallest to largest. The most striking feature is the large gap between the metropolitan total and any individual city: the Utsunomiya Metropolitan Area as a whole has by far the highest number of employed persons, reflecting the aggregation of multiple cities and towns. Among individual municipalities, Utsunomiya-shi clearly dominates employment, standing well above the rest, while Oyama-shi and Tochigi-shi form a second tier with moderate employment levels. The remaining cities and towns have relatively small employed populations, with a long tail of smaller municipalities contributing only a limited share. Overall, the figure highlights a highly centralized employment structure, where employment opportunities are concentrated in the core city and the broader metropolitan area rather than evenly distributed across all municipalities.
+
+# Structure tab: Internal composition of labour force categories
+
+The Structure tab focuses on the internal composition of labour force categories within a single metropolitan area. Users select one metropolitan area and choose whether values are displayed as absolute counts or percentages.
+
+The stacked bar chart decomposes the total population into categories such as *Employed persons*, *Unemployed*, *Did housework*, *Attending school*, and *Others*. This visualization provides insight into how the population is distributed across different economic and social roles. For instance, in the Utsunomiya Metropolitan Area, employed persons form the largest component, while students and individuals engaged in housework represent smaller but still meaningful shares.
+
+The accompanying table lists each category and its value, reinforcing transparency and interpretability of the visualization.
+
+```{r}
+df_structure <- df_emp_honshu_clean %>%
+  filter(`Metropolitan Areas` == "Utsunomiya Metropolitan Areas") %>%
+  select(
+    `Metropolitan Areas`,
+    `Employed persons`,
+    Unemployed,
+    `Did housework`,
+    `Attending school`,
+    Others
+  ) %>%
+  pivot_longer(
+    cols = -`Metropolitan Areas`,
+    names_to = "Category",
+    values_to = "value"
+  )
+
+ggplot(
+  df_structure,
+  aes(
+    x = value,
+    y = `Metropolitan Areas`,
+    fill = Category
+  )
+) +
+  geom_col(width = 0.5) +
+  labs(
+    x = NULL,
+    y = NULL,
+    fill = "Category"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+
+```
+
+This stacked bar chart shows the composition of the population in the Utsunomiya Metropolitan Area across different labour-force categories, highlighting that employed persons constitute the largest share, followed by individuals outside the labour force.
+
+# Compare tab: Direct comparison between two areas
+
+The Compare tab enables direct comparison between two selected areas using a specific derived metric, such as the *Employment rate*. Users select Area A, Area B, and the metric of interest.
+
+The bar chart displays the chosen metric side by side for the two areas, making relative differences immediately visible. A short textual interpretation is shown beneath the chart, summarizing the comparison in plain language (for example, indicating which area has a higher employment rate). This tab is particularly useful for policy-relevant or analytical questions that require clear, pairwise comparison.
+
+```{r}
+df_compare <- df_emp_honshu_clean %>%
+  filter(`Metropolitan Areas` %in% c(
+    "Utsunomiya Metropolitan Areas",
+    "Utsunomiya-shi"
+  )) %>%
+  mutate(
+    employment_rate = `Employed persons` / `Population in labour force`
+  ) %>%
+  select(`Metropolitan Areas`, employment_rate)
+
+ggplot(
+  df_compare,
+  aes(
+    x = `Metropolitan Areas`,
+    y = employment_rate,
+    fill = `Metropolitan Areas`
+  )
+) +
+  geom_col(width = 0.9, show.legend = FALSE) +
+  scale_y_continuous(limits = c(0, 1)) +
+  labs(
+    x = NULL,
+    y = "Employment rate"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid.minor = element_blank()
+  )
+
+```
+
+Utsunomiya-shi has a slightly higher employment rate than the Utsunomiya Metropolitan Area, indicating stronger labor market participation in the core city.
+
+# Map tab: Spatial context of the analysis
+
+The Map tab situates the analysis geographically. It displays a map of Japan with metropolitan areas included in the study highlighted. Users can choose to highlight a single metropolitan area.
+
+This visualization provides spatial context, helping users understand where each metropolitan area is located within Honshu. Rather than conveying detailed quantitative information, the map clarifies the geographic scope of the study and reinforces the connection between statistical patterns and real-world locations.
+
+```{r}
+japan <- ne_countries(country = "Japan", scale = "medium", returnclass = "sf")
+
+metro_points <- data.frame(
+  lon = 139.6917,
+  lat = 35.6895
+)
+
+ggplot() +
+  geom_sf(data = japan, fill = "grey95", color = "grey70", linewidth = 0.3) +
+  geom_point(
+    data = metro_points,
+    aes(x = lon, y = lat),
+    color = "black",
+    size = 3
+  ) +
+  coord_sf(
+    xlim = c(123, 146),
+    ylim = c(24, 46),
+    expand = FALSE
+  ) +
+  labs(
+    title = "Metropolitan areas included in this study",
+    subtitle = "Highlighted locations indicate the spatial scope of analysis"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_line(color = "grey85"),
+    panel.grid.minor = element_blank()
+  )
+```
+
+This figure illustrates the geographic scope of the study, with highlighted points indicating the metropolitan areas included in the analysis across Japan.
