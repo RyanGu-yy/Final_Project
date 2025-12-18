@@ -30,6 +30,9 @@ The horizontal bar chart displays the selected indicator for each area, ranked f
 A corresponding data table beneath the chart presents the exact numerical values, allowing users to move seamlessly between visual comparison and precise quantitative interpretation.
 
 ```{r}
+df_emp_honshu_clean <- read.csv("df_emp_honshu_clean.csv")
+colnames(df_emp_honshu_clean) <- gsub("\\.", " ", colnames(df_emp_honshu_clean))
+
 df_plot <- df_emp_honshu_clean %>%
   arrange(desc(`Employed persons`)) %>%
   mutate(
