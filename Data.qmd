@@ -146,4 +146,6 @@ unique(df_emp_honshu_clean$`Metropolitan Areas`)
 ```{r}
 glimpse(df_emp_honshu_clean)
 glimpse(pop_clean)
+write.csv(df_emp_honshu_clean, "df_emp_honshu_clean.csv", row.names = FALSE)
+write.csv(pop_clean, "pop_clean.csv", row.names = FALSE)
 ```
